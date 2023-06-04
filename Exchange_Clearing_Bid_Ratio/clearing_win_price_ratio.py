@@ -55,14 +55,11 @@ class noExchange(Exception):
         self.data_list_exchange = data_list_exchange
     
     def __str__(self):
-        error_message = 'You have entered an incorrect exchange name. Please be sure to pick one from the following list: '
-        exchange_list = []
-        for k,v in self.data_list_exchange.items():
-            exchange_list.append(k)
-        
-        error_message = error_message + ', '.join(exchange_list)
-        
-        return error_message
+        exchange_list = [k for k, v in self.data_list_exchange.items()]
+        return (
+            'You have entered an incorrect exchange name. Please be sure to pick one from the following list: '
+            + ', '.join(exchange_list)
+        )
             
         
     
@@ -79,7 +76,7 @@ class pickExchange(object):
     ##k = keys in dict. (i.e exchanges) & v = values in dict. (i.e a tuple of (impressions,cost,max_bid_uI))
     def filterExchange(self):
         for k, v in self.data_list.items():
-            if self.exchange == None:
+            if self.exchange is None:
                 return self.data_list
             if k.lower() == self.exchange.lower():
                 return {k: self.data_list[k]}
@@ -170,46 +167,40 @@ def plotGraph(final_data_set, exchange):
     Plot the distribution of impressions with ration in the x-axis and %tage of impressions in the y-axis
     """
     ratios = []
-    bins = []
     for k,v in final_data_set.items():
         for i in range(len(v)):
             #ratios.append(v[i][RATIO])
             ratios += v[i][IMPRESSIONS] * [(v[i][RATIO])]
-    
-    for i in np.arange(0.0,1.0,0.01):
-        bins.append(round(i,2))
-    
+
+    bins = [round(i,2) for i in np.arange(0.0,1.0,0.01)]
     distribution_ob, bins_ob, bars_ob = plt.hist(ratios, bins, histtype='bar', rwidth=0.9, label=exchange)
     plt.xlabel('Ratios')
     plt.ylabel('% Impressions')
     plt.title('True 2nd Price Auction')
     plt.legend()
     plt.show()
-    
+
     #Compute mean and standard deviation    
     mean_ratio = sum(ratios) / len(ratios)
     st_dev = np.std(ratios)
-    
-    print('Mean :', mean_ratio)   
+
+    print('Mean :', mean_ratio)
     print('Standard Deviation: ', st_dev)
-    
+
     observed_data = observedData(distribution_ob, bins_ob)
     sum_tot_values = sum(observed_data.getObservedDist())
     sum_tot_values = int(sum_tot_values)
-    
+
     return calculateChiSquare(observed_data.getObservedDist(), generateRandomTest(sum_tot_values, 4.0))
 
 
 def generateRandomTest(number_bids, higher_bound_bid, run_random=False):
     """Generate random ratio to evaluate what is a uniform distribution under total random conditions.
     higher_bound_bid is a float"""
-    bins = []
     random_ratios = []
-    
-    for i in np.arange(0.0,1.0,0.01):
-        bins.append(round(i,2)) 
 
-    for i in range(number_bids):
+    bins = [round(i,2) for i in np.arange(0.0,1.0,0.01)]
+    for _ in range(number_bids):
         max_bid_rd = rd.uniform(0.01, higher_bound_bid)
         clearing_price = rd.uniform(0.01, max_bid_rd - 0.01) + 0.01
         ratio = clearing_price/max_bid_rd
@@ -218,7 +209,7 @@ def generateRandomTest(number_bids, higher_bound_bid, run_random=False):
     distribution_exp, bins_exp, bars_epx = plt.hist(random_ratios, bins, normed=True,histtype='bar', rwidth=0.9,label='Random Data Set')
     mean_ratio = sum(random_ratios) / len(random_ratios)
     st_dev = np.std(random_ratios)
-    
+
     if run_random == True:        
         plt.xlabel('Ratios')
         plt.ylabel('% Impressions')
@@ -229,15 +220,15 @@ def generateRandomTest(number_bids, higher_bound_bid, run_random=False):
         plt.title('Random 2nd Price Auctions')
         plt.legend()
         plt.show()
-        
+
         expected_data = expectedData(distribution_exp, bins_exp)
         observed_data = observedData(distribution_exp, bins_exp)
-        
+
         print('Mean :', mean_ratio)   
         print('Standard Deviation: ', st_dev)
-        
+
         return calculateChiSquare(observed_data.getObservedDist(),expected_data.getRatioDistribution())
-    
+
     else:
         #Compute mean and std for random set        
         expected_data = expectedData(distribution_exp, bins_exp)
@@ -249,10 +240,7 @@ def calculateChiSquare(observed_data, expected_ratio):
     """
     tot_observed_data = sum(observed_data)
     tot_observed_data = int(tot_observed_data)
-    
-    expected_data = []
-    for i in range(len(observed_data)):
-        expected_data.append(tot_observed_data*0.01)
-        
+
+    expected_data = [tot_observed_data*0.01 for _ in range(len(observed_data))]
     return chisquare(observed_data, f_exp=expected_data)
     

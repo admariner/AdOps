@@ -38,8 +38,7 @@ class URLOperations(object):
                                                     #if https://... exists
     def openWebPage(self):
         headers = {'user-agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64'}
-        req = requests.get(self.getFullURL(), headers=headers)
-        return req
+        return requests.get(self.getFullURL(), headers=headers)
     
     def checkHTTPCode(self):
         return self.openWebPage().status_code
@@ -61,9 +60,7 @@ def openFile(file):
     """
    
     file = open(file)
-    list_of_domains = [domain.rstrip() for domain in file.readlines()[1:]]
-    
-    return list_of_domains
+    return [domain.rstrip() for domain in file.readlines()[1:]]
 
 def createURLObjects(domains, path):
     """
@@ -73,30 +70,23 @@ def createURLObjects(domains, path):
     flexibility for the user to scrape different webpage - even though this program is specifically intended 
     to scrape ads.txt pages
     """
-    full_url = []
-    
-    for domain in domains:
-        full_url.append(URLOperations(domain, path)) #create URLOperations object and append them to full_url list
-        
-    return full_url
+    return [URLOperations(domain, path) for domain in domains]
 
 def checkHasAdsFile(list_domain_objects, filter_status, print_status):
     
     has_ads_txt = {}
     ads_txt_data = []
-    
+
     line_start_comment = re.compile(r'^#') #Search for lines with only comments
     comment_in_line = re.compile(r'#.*') #search for lines with comments at the end
     return_char = re.compile(r'\r') #search for \r 
-                                 
+
     for domain in list_domain_objects:
         if print_status:
             print(domain.getDomain(), ': HTTP status -> ', domain.checkHTTPCode())
         if domain.checkHTTPCode() == 404:
-            has_ads_txt[domain.getDomain()] = False                        
-        elif domain.checkHTTPCode() != 200:
-            pass
-        else:
+            has_ads_txt[domain.getDomain()] = False
+        elif domain.checkHTTPCode() == 200:
             has_ads_txt[domain.getDomain()] = True
             if filter_status == "complete": ## parse webpage and put data in tuple if 
                                             ## filter_status == "complete" (ref runHasAdstxt())
@@ -113,7 +103,7 @@ def checkHasAdsFile(list_domain_objects, filter_status, print_status):
                         line = return_char.sub("", line)
                         temp_tuple = tuple(line.split(','))
                         ads_txt_data.append((domain.getDomain(),) + temp_tuple)
-    
+
     return structureData(has_ads_txt, ads_txt_data, filter_status)
 
 def structureData(has_ads_txt, ads_txt_data, filter_status):
@@ -126,22 +116,28 @@ def structureData(has_ads_txt, ads_txt_data, filter_status):
         labels = ["DOMAINS","SSP","PUB_ID","SALES_CHANNEL","CERT_AUTH_ID"]         
         ads_txt_data_df = pd.DataFrame.from_records(ads_txt_data, columns=labels, index=labels[0])
         ads_txt_data_df.to_csv("ads.txt_data.csv") 
-    
+
     has_ads_txt_df = pd.DataFrame.from_dict(has_ads_txt, orient='index')
     has_ads_txt_df.columns = ["has_ads.txt"]
-    
+
     has_ads_txt_df.to_csv("has_ads_txt.csv")
 
-    
+
     temp_series = pd.Series(has_ads_txt_df['has_ads.txt'].value_counts())
     temp_dict = pd.Series.to_dict(temp_series)
-    
+
     ## Plot pie chart of has_ads_txt df
     plt.figure(1, figsize=(4,4))
-    plt.pie([v for v in temp_dict.values()], None, [k for k in temp_dict], autopct='%.2f%%',colors=['silver', 'yellow'])  ##'%.2f%% is used to format data label'
+    plt.pie(
+        list(temp_dict.values()),
+        None,
+        list(temp_dict),
+        autopct='%.2f%%',
+        colors=['silver', 'yellow'],
+    )
     plt.title("Has ads.txt (%tage of publishers)")
     plt.show()
-    
+
     return "File succesfully generated."
 
 def runHasAdstxt(file, path, filter_status="limited", print_status=True):
