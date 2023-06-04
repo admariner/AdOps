@@ -40,7 +40,7 @@ class Points(object):
     
     def __init__(self, name, original_attributs, normalized_attributs = None):
         self.name = name
-        if normalized_attributs == None:
+        if normalized_attributs is None:
             self.attributs = original_attributs
         else:
             self.attributs = normalized_attributs
@@ -88,10 +88,8 @@ class Cluster(object):
         total_value = pylab.array([0.0]*dim)
         for p in self.points:
             total_value += p.getAttributs()
-        
-        centroid = Points('mean', total_value/len(self.points))
 
-        return centroid
+        return Points('mean', total_value/len(self.points))
     
     def getCentroid(self):
         return self.centroid
@@ -107,13 +105,10 @@ class Cluster(object):
             return 0.0
         
     def members(self):
-        for p in self.points:
-            yield p
+        yield from self.points
         
     def __str__(self):
-        names = []
-        for p in self.points:
-            names.append(p.getName())
+        names = [p.getName() for p in self.points]
         names.sort()
         result = ''
         for p in names:
@@ -198,28 +193,15 @@ def runKmeans(points, k, cut_off, iterations):
     
     ## Initialize the algorithm by randomly picking intial centroid in Points
     initial_centroid = random.sample(points, k)
-    
-    ## Create an empty cluster and append k clusters composed of p initial point
-    clusters = []
-    
-    for p in initial_centroid:
-        clusters.append(Cluster([p]))
-    
-    
+
+    clusters = [Cluster([p]) for p in initial_centroid]
     ## Book keeping for while loop
     num_iterations = 0
     biggest_change = cut_off
-    
-    
-    ## Iterate through Points,  assign each point to a cluster based on euclidian distance.
-    ## Keeps iterating until either maximum of iteration is reached or biggest change in cluster
-    ## centroid is lower than cut off
-    while num_iterations <= iterations and biggest_change >= cut_off:
-        new_cluster = []
-        
-        for i in range(k):
-            new_cluster.append([])
-            
+
+
+    while num_iterations <= iterations and biggest_change >= biggest_change:
+        new_cluster = [[] for _ in range(k)]
         for p in points:
             smallest_distance = p.euclidianDistance(clusters[0].getCentroid())
             index = 0
@@ -228,23 +210,23 @@ def runKmeans(points, k, cut_off, iterations):
                 if distance < smallest_distance:
                     smallest_distance = distance
                     index = i
-                    
+
             new_cluster[index].append(p)
 
         biggest_change = 0.0
         for i in range(len(clusters)):
             change = clusters[i].update(new_cluster[i])
             biggest_change = max(biggest_change, change)
-        
+
         num_iterations += 1
-     
+
     max_distance = 0.0
-    
+
     for c in clusters:
         for p in c.members():
             if p.euclidianDistance(c.getCentroid()) > max_distance:
                 max_distance = p.euclidianDistance(c.getCentroid())
-                
+
     ## Calculate average distance between all points and their clusters
     cluster_total_value = 0.0
     for c in clusters:
@@ -253,10 +235,10 @@ def runKmeans(points, k, cut_off, iterations):
         for p in c.members():
             total_value += p.euclidianDistance(c.getCentroid())
         cluster_total_value += total_value/num_points
-            
+
     average_dist = cluster_total_value / len(clusters)
 
-    
+
     return clusters, average_dist
 
 
@@ -284,37 +266,33 @@ def runTestKmeans(filename, k=0, cut_off=0, iterations=0, threshold=0):
     
     
     
-def displayClusters(clusters, column_names):  
+def displayClusters(clusters, column_names):
     """
     Function used to generate the excel files containing the clustered domains
     """
     
-    final_clusters = []
-
-    for i in range(len(clusters)):
-        final_clusters.append([]) 
-        
+    final_clusters = [[] for _ in range(len(clusters))]
     for c in clusters:
         for p in c.members():
             final_clusters[clusters.index(c)].append((p.name, p.getAttributs()))
-        
+
     for i in range(len(final_clusters)):
         temp = OrderedDict(final_clusters[i])
         df = pd.DataFrame.from_dict(temp, orient='index') ## convert dictionnary to a pd dataframe
 
         ## Calculate mean value for the cluster and add them at bottom of group
         mean_values = pd.Series(df.mean())
-        df.loc["MEAN"] = mean_values    
+        df.loc["MEAN"] = mean_values
         df.columns = [column_names]
 
         df_description = df.describe() ## create dataframe containing a description of the cluster dataframe
-        
+
         ## Create a new file and write new sheets
-        writer = pd.ExcelWriter('domains_cluster_' + str(i) + '.xls')
+        writer = pd.ExcelWriter(f'domains_cluster_{str(i)}.xls')
         df.to_excel(writer, "Domains_Group")
         df_description.to_excel(writer, "Group_Summary")
         writer.save()
-    
+
 
     return "Your file(s) ha(s)(ve) been succesfuly generated" 
                     
